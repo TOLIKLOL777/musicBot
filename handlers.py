@@ -42,6 +42,18 @@ async def send_screen(
     await callback.answer()
 
 
+async def menu_screen(db: Database) -> tuple[str, InlineKeyboardMarkup]:
+    order_count, keyword_count, chat_count, notifications_enabled = await db.dashboard_stats()
+    notification_status = "🟢 Включены" if notifications_enabled else "🔴 Выключены"
+    chat_status = f"{chat_count} разрешённых" if chat_count else "Все чаты"
+    text = (
+        f"{MENU_TEXT}\n\n"
+        f"{notification_status} уведомления · {chat_status}\n"
+        f"📦 Найдено заказов: <b>{order_count}</b>"
+    )
+    return text, keyboards.main_menu(order_count, keyword_count)
+
+
 async def update_screen_from_input(
     message: Message,
     state: FSMContext,
@@ -65,7 +77,10 @@ async def update_screen_from_input(
 async def keywords_screen(db: Database) -> tuple[str, InlineKeyboardMarkup]:
     keywords = await db.keywords()
     hint = "Нажмите на слово, чтобы удалить его." if keywords else "Список пока пуст."
-    return f"🔑 <b>Ключевые слова</b>\n\n{hint}", keyboards.keywords_menu(keywords)
+    return (
+        f"🔑 <b>Ключевые слова · {len(keywords)}</b>\n\n{hint}",
+        keyboards.keywords_menu(keywords),
+    )
 
 
 async def settings_screen(db: Database) -> tuple[str, InlineKeyboardMarkup]:
@@ -81,7 +96,7 @@ async def allowed_chats_screen(db: Database) -> tuple[str, InlineKeyboardMarkup]
     else:
         hint = "Список пуст — уведомления будут приходить из всех чатов."
     return (
-        f"📨 <b>Разрешённые чаты</b>\n\n{hint}",
+        f"📨 <b>Разрешённые чаты · {len(chats)}</b>\n\n{hint}",
         keyboards.allowed_chats_menu(chats),
     )
 
@@ -140,15 +155,16 @@ CHAT_ID_HELP_TEXT = (
 
 
 @router.message(Command("start"))
-async def start(message: Message, state: FSMContext) -> None:
+async def start(message: Message, state: FSMContext, db: Database) -> None:
     await state.clear()
-    await message.answer(MENU_TEXT, reply_markup=keyboards.main_menu())
+    text, markup = await menu_screen(db)
+    await message.answer(text, reply_markup=markup)
 
 
 @router.callback_query(F.data == "menu")
-async def open_menu(callback: CallbackQuery, state: FSMContext) -> None:
+async def open_menu(callback: CallbackQuery, state: FSMContext, db: Database) -> None:
     await state.clear()
-    await send_screen(callback, MENU_TEXT, keyboards.main_menu())
+    await send_screen(callback, *await menu_screen(db))
 
 
 @router.callback_query(F.data.startswith("orders:"))
@@ -193,8 +209,7 @@ async def ask_keywords(callback: CallbackQuery, state: FSMContext) -> None:
 @router.message(AddKeywords.waiting, F.text)
 async def add_keywords(message: Message, state: FSMContext, db: Database) -> None:
     words = {word.strip().lower() for word in re.split(r"[,\n]", message.text)}
-    for word in words - {""}:
-        await db.add_keyword(word)
+    await db.add_keywords(sorted(words - {""}))
     text, markup = await keywords_screen(db)
     await update_screen_from_input(message, state, text, markup)
 

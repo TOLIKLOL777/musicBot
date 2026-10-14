@@ -2,3 +2,4 @@ aiogram>=3.13,<4
 telethon>=1.36,<2
 aiosqlite>=0.20
 python-dotenv>=1.0
+celery[redis]>=5.4,<6
