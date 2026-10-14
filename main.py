@@ -23,7 +23,7 @@ async def main() -> None:
     client = TelegramClient(config.session_name, config.api_id, config.api_hash)
     register_watcher(client, bot, db)
 
-    dispatcher = Dispatcher(db=db)
+    dispatcher = Dispatcher(db=db, client=client)
     dispatcher.include_router(router)
 
     await client.start()

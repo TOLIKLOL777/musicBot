@@ -28,13 +28,18 @@ def message_link(chat, message_id: int) -> str | None:
     return None
 
 
-def format_notification(chat_title: str, author: str, text: str) -> str:
+def format_notification(chat_title: str, author: str, text: str, link: str | None) -> str:
     shown = text if len(text) <= MAX_TEXT_LENGTH else text[:MAX_TEXT_LENGTH] + "…"
+    message_link_text = ""
+    if not link:
+        message_link_text = "\n\n<i>Прямая ссылка на сообщение для этого чата недоступна.</i>"
+
     return (
         "🎵 <b>Возможный заказ</b>\n\n"
         f"<b>Чат:</b> {escape(chat_title)}\n"
         f"<b>Автор:</b> {escape(author)}\n\n"
         f"{escape(shown)}"
+        f"{message_link_text}"
     )
 
 
@@ -46,12 +51,15 @@ def register_watcher(client: TelegramClient, bot: Bot, db: Database) -> None:
         if not await db.notifications_enabled():
             return
 
+        chat = await event.get_chat()
+        if not await db.is_chat_allowed(event.chat_id):
+            return
+
         text = event.raw_text
         lowered = text.lower()
         if not any(word in lowered for _, word in await db.keywords()):
             return
 
-        chat = await event.get_chat()
         author = author_name(await event.get_sender(), chat.title)
         link = message_link(chat, event.message.id)
 
@@ -63,6 +71,6 @@ def register_watcher(client: TelegramClient, bot: Bot, db: Database) -> None:
 
         await bot.send_message(
             config.owner_id,
-            format_notification(chat.title, author, text),
+            format_notification(chat.title, author, text, link),
             reply_markup=keyboards.order_keyboard(order_id, link),
         )
