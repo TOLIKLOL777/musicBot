@@ -171,6 +171,7 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-watcher.session
+*.session
+*.session-journal
 
 bot.db

@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 
 
+load_dotenv()
+
 @dataclass(frozen=True)
 class Config:
     bot_token: str
@@ -22,7 +24,6 @@ def _required(name: str) -> str:
 
 
 def load_config() -> Config:
-    load_dotenv()
     return Config(
         bot_token=_required("BOT_TOKEN"),
         owner_id=int(_required("OWNER_ID")),
