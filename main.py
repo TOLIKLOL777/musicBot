@@ -1,33 +1,41 @@
 import asyncio
-import os
+import logging
 
 from aiogram import Bot, Dispatcher
-from aiogram.filters import Command
-from aiogram.types import Message
-from dotenv import load_dotenv
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from telethon import TelegramClient
 
-load_dotenv(override=True)
+from config import config
+from db import Database
+from handlers import router
+from watcher import register_watcher
 
-TOKEN = os.getenv("Token")
 
-dp = Dispatcher()
-
-
-# Command handler
-@dp.message(Command("start"))
-async def command_start_handler(message: Message) -> None:
-    await message.answer("Hello! I'm a bot created with aiogram.")
-
-@dp.message()
-async def echo_handler(message: Message) -> None:
-    await message.answer(message.text)
-
-# Run the bot
 async def main() -> None:
-    bot = Bot(token=TOKEN)
-    await dp.start_polling(bot)
+    logging.basicConfig(level=logging.INFO)
+
+    db = await Database.connect(config.db_path)
+    bot = Bot(
+        config.bot_token,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML, link_preview_is_disabled=True),
+    )
+    client = TelegramClient(config.session_name, config.api_id, config.api_hash)
+    register_watcher(client, bot, db)
+
+    dispatcher = Dispatcher(db=db, client=client)
+    dispatcher.include_router(router)
+
+    await client.start()
+    try:
+        await dispatcher.start_polling(bot)
+    finally:
+        await client.disconnect()
+        await db.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
-          
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
