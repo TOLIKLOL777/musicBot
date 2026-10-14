@@ -48,18 +48,12 @@ def register_watcher(client: TelegramClient, bot: Bot, db: Database) -> None:
     async def on_message(event: events.NewMessage.Event) -> None:
         if event.is_private or not event.raw_text:
             return
-        if not await db.notifications_enabled():
+
+        text = event.raw_text
+        if not db.should_notify_for_message(event.chat_id, text):
             return
 
         chat = await event.get_chat()
-        if not await db.is_chat_allowed(event.chat_id):
-            return
-
-        text = event.raw_text
-        lowered = text.lower()
-        if not any(word in lowered for _, word in await db.keywords()):
-            return
-
         author = author_name(await event.get_sender(), chat.title)
         link = message_link(chat, event.message.id)
 

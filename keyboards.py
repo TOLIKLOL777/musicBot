@@ -2,11 +2,19 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
-def main_menu() -> InlineKeyboardMarkup:
+def main_menu(order_count: int = 0, keyword_count: int = 0) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📋 Все заказы", callback_data="orders:0")],
-            [InlineKeyboardButton(text="🔑 Ключевые слова", callback_data="keywords")],
+            [
+                InlineKeyboardButton(
+                    text=f"📋 Все заказы · {order_count}", callback_data="orders:0"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=f"🔑 Ключевые слова · {keyword_count}", callback_data="keywords"
+                )
+            ],
             [InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings")],
         ]
     )
@@ -15,7 +23,7 @@ def main_menu() -> InlineKeyboardMarkup:
 def keywords_menu(keywords: list[tuple[int, str]]) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for keyword_id, word in keywords:
-        builder.button(text=f"❌ {word}", callback_data=f"kw_del:{keyword_id}")
+        builder.button(text=f"Удалить '{word}'", callback_data=f"kw_del:{keyword_id}")
     builder.adjust(2)
     builder.row(InlineKeyboardButton(text="➕ Добавить", callback_data="kw_add"))
     builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data="menu"))
@@ -43,7 +51,7 @@ def allowed_chats_menu(chats: list[tuple[int, int, str | None, str | None]]) -> 
     builder = InlineKeyboardBuilder()
     for _, chat_id, title, username in chats:
         label = title or (f"@{username}" if username else f"ID {chat_id}")
-        builder.button(text=f"❌ {label}", callback_data=f"chat_del:{chat_id}")
+        builder.button(text=f"Удалить '{label}'", callback_data=f"chat_del:{chat_id}")
 
     if chats:
         builder.adjust(1)
